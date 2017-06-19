@@ -73,7 +73,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
         // http://re-publica.de/11/rp2011.ics
         try {
-            publishProgress("Connecting to iCal URL...");
+            publishProgress("Connecting to URL...");
 
             // connect without SSL verification
             HttpURLConnection http;
