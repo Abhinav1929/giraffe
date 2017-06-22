@@ -1,13 +1,18 @@
 package org.splitbrain.giraffe;
 
 import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import org.splitbrain.simpleical.SimpleIcalEvent;
 import org.splitbrain.simpleical.SimpleIcalParser;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Date;
@@ -24,6 +29,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
     private final OptionsActivity context;
     private DBAdapter db = null;
     private boolean ignoreSSLCerts = false;
+    SharedPreferences prefs;
 
     public EventLoader(OptionsActivity context) {
         this.context = context;
@@ -39,6 +45,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
     @Override
     protected void onPreExecute() {
+        prefs = PreferenceManager.getDefaultSharedPreferences(context);
     }
 
     @Override
@@ -66,11 +73,6 @@ public class EventLoader extends AsyncTask<URL, String, String> {
     protected String doInBackground(URL... urls) {
         int count = 0;
 
-        publishProgress("Opening database...");
-        db = new DBAdapter(context);
-        db.open();
-        db.begin();
-
         // http://re-publica.de/11/rp2011.ics
         try {
             publishProgress("Connecting to URL...");
@@ -87,6 +89,28 @@ public class EventLoader extends AsyncTask<URL, String, String> {
             }
             InputStream inputStream = http.getInputStream();
 
+            BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
+            String line = r.readLine();
+
+            if(line.contains("BEGIN:VCALENDAR"))
+            {
+                SharedPreferences.Editor edit = prefs.edit();
+                edit.putString("type", "ical");
+                edit.commit();
+                Log.e("Response type","ical");
+            }
+            else if(line.contains("{"))
+            {
+                SharedPreferences.Editor edit = prefs.edit();
+                edit.putString("type", "json");
+                edit.commit();
+                Log.e("Response type","json");
+            }
+
+            publishProgress("Opening database...");
+            db = new DBAdapter(context);
+            db.open();
+            db.begin();
 
             publishProgress("Clearing database...");
             db.deleteEvents();

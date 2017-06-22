@@ -2,11 +2,14 @@ package org.splitbrain.giraffe;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.preference.PreferenceManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
@@ -20,7 +23,6 @@ public class DBAdapter {
 
     private final DatabaseHelper DBHelper;
     private SQLiteDatabase db = null;
-    ;
 
 
     public final static String EVENT_ID = "events._id";
@@ -35,6 +37,8 @@ public class DBAdapter {
     public final static String URL = "url";
     public final static String FAVORITE = "favorite";
 
+    SharedPreferences prefs;
+    private String type;
     /**
      * Database filed names as read in getEvent(s)
      */
@@ -51,6 +55,10 @@ public class DBAdapter {
     };
 
     public DBAdapter(Context context) {
+
+        prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        type = prefs.getString("type", "");
+        Log.e("DB type",type);
         DBHelper = new DatabaseHelper(context);
     }
 
