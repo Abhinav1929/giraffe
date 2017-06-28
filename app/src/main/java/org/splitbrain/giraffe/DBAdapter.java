@@ -15,7 +15,6 @@ import android.widget.Toast;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 
 public class DBAdapter {
     private static final String DATABASE_NAME = "EventPlanner";
