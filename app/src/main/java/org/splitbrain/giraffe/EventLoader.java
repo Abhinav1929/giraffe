@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Date;
 
 import javax.net.ssl.HostnameVerifier;
@@ -28,16 +29,63 @@ import javax.net.ssl.X509TrustManager;
 
 
 public class EventLoader extends AsyncTask<URL, String, String> {
+    /**
+     * always verify the host - don't check for certificate
+     *
+     * @link http://stackoverflow.com/a/9133562/172068
+     */
+    final static HostnameVerifier DO_NOT_VERIFY = new HostnameVerifier() {
+        @SuppressLint("BadHostnameVerifier")
+        public boolean verify(String hostname, SSLSession session) {
+            return true;
+        }
+    };
     private final OptionsActivity context;
+    SharedPreferences prefs;
     private DBAdapter db = null;
     private boolean ignoreSSLCerts = false;
-    SharedPreferences prefs;
     private String type;
+
 
     public EventLoader(OptionsActivity context) {
         this.context = context;
     }
 
+    /**
+     * Trust every server - don't check for any certificate
+     *
+     * @link http://stackoverflow.com/a/9133562/172068
+     */
+    private static void trustAllHosts() {
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                return new java.security.cert.X509Certificate[]{};
+            }
+
+            @SuppressLint("TrustAllX509TrustManager")
+            public void checkClientTrusted(
+                    java.security.cert.X509Certificate[] chain, String authType)
+                    throws java.security.cert.CertificateException {
+            }
+
+            @SuppressLint("TrustAllX509TrustManager")
+            public void checkServerTrusted(
+                    java.security.cert.X509Certificate[] chain, String authType)
+                    throws java.security.cert.CertificateException {
+            }
+        }};
+
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection
+                    .setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * @param ignoreSSLCerts the ignoreSSLCerts to set
@@ -70,7 +118,6 @@ public class EventLoader extends AsyncTask<URL, String, String> {
     protected void onProgressUpdate(String... values) {
         context.writeProgress(values[0]);
     }
-
 
     @Override
     protected String doInBackground(URL... urls) {
@@ -149,14 +196,14 @@ public class EventLoader extends AsyncTask<URL, String, String> {
                         return "Cancelled";
                     }
                 }
-            }
-            else if(type.equals("json"))
-            {
-                SimpleJsonParser ical = new SimpleJsonParser(inputStream);
-                SimpleJsonEvent event;
-                while ((event = ical.nextEvent()) != null) {
+            } else if (type.equals("json")) {
+                SimpleJsonParser json = new SimpleJsonParser(inputStream);
+                ArrayList<SimpleJsonEvent> event = json.nextEvent();
+                int i;
+
+                for (i = 0; i < event.size(); i++) {
                     // build record
-                    EventRecord record = getEventRecordJson(event);
+                    EventRecord record = getEventRecordJson(event.get(i));
                     if (record == null) continue;
 
                     // add to database:
@@ -184,7 +231,6 @@ public class EventLoader extends AsyncTask<URL, String, String> {
         db.close();
         return "Sucessfully loaded " + count + " entries.";
     }
-
 
     private EventRecord getEventRecordIcal(SimpleIcalEvent event) {
         // mandatory fields
@@ -222,86 +268,26 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
     private EventRecord getEventRecordJson(SimpleJsonEvent event) {
         // mandatory fields
-        String uid = event.get("UID");
-        String summary = event.get("SUMMARY");
-        Date dateStart = event.getStartDate();
-        if (summary == null) return null;
-        if (dateStart == null) return null;
-
-        // fake UID
-        if (uid == null) {
-            uid = summary + dateStart.getTime();
-        }
+        String uid = event.getId();
+        Date dateStart = event.getStarts();
 
         // optional fields
-        Date dateEnd = event.getEndDate();
-        String location = event.get("LOCATION");
-        String organizer = event.get("ORGANIZER");
-        String url = event.get("URL");
-        String description = event.get("DESCRIPTION");
+        Date dateEnd = event.getEnds();
+        String location = event.getLocation();
+        String url = event.getUrl();
+        String description = event.getDescription();
 
         // create event
         EventRecord record = new EventRecord();
         record.id = uid;
-        record.title = summary;
+        record.title = event.getTitle();
         record.starts = dateStart.getTime() / 1000;
         if (dateEnd != null) record.ends = dateEnd.getTime() / 1000;
         if (location != null) record.location = location;
-        if (organizer != null) record.speaker = organizer;
         if (url != null) record.url = url;
         if (description != null) record.description = description;
 
         return record;
-    }
-
-
-
-    /**
-     * always verify the host - don't check for certificate
-     *
-     * @link http://stackoverflow.com/a/9133562/172068
-     */
-    final static HostnameVerifier DO_NOT_VERIFY = new HostnameVerifier() {
-        @SuppressLint("BadHostnameVerifier")
-        public boolean verify(String hostname, SSLSession session) {
-            return true;
-        }
-    };
-
-    /**
-     * Trust every server - don't check for any certificate
-     *
-     * @link http://stackoverflow.com/a/9133562/172068
-     */
-    private static void trustAllHosts() {
-        // Create a trust manager that does not validate certificate chains
-        TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
-            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return new java.security.cert.X509Certificate[]{};
-            }
-
-            @SuppressLint("TrustAllX509TrustManager")
-            public void checkClientTrusted(
-                    java.security.cert.X509Certificate[] chain, String authType)
-                    throws java.security.cert.CertificateException {
-            }
-
-            @SuppressLint("TrustAllX509TrustManager")
-            public void checkServerTrusted(
-                    java.security.cert.X509Certificate[] chain, String authType)
-                    throws java.security.cert.CertificateException {
-            }
-        }};
-
-        // Install the all-trusting trust manager
-        try {
-            SSLContext sc = SSLContext.getInstance("TLS");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection
-                    .setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
 }
