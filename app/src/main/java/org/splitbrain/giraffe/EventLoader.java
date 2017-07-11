@@ -9,6 +9,8 @@ import android.widget.Toast;
 
 import org.splitbrain.simpleical.SimpleIcalEvent;
 import org.splitbrain.simpleical.SimpleIcalParser;
+import org.splitbrain.simplejson.SimpleJsonEvent;
+import org.splitbrain.simplejson.SimpleJsonParser;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -30,6 +32,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
     private DBAdapter db = null;
     private boolean ignoreSSLCerts = false;
     SharedPreferences prefs;
+    private String type;
 
     public EventLoader(OptionsActivity context) {
         this.context = context;
@@ -92,19 +95,18 @@ public class EventLoader extends AsyncTask<URL, String, String> {
             BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
             String line = r.readLine();
 
-            if(line.contains("BEGIN:VCALENDAR"))
-            {
+            if (line.contains("BEGIN:VCALENDAR")) {
                 SharedPreferences.Editor edit = prefs.edit();
                 edit.putString("type", "ical");
                 edit.commit();
-                Log.e("Response type","ical");
-            }
-            else if(line.contains("{"))
-            {
+                Log.e("Response type", "ical");
+                type = "ical";
+            } else if (line.contains("{")) {
                 SharedPreferences.Editor edit = prefs.edit();
                 edit.putString("type", "json");
                 edit.commit();
-                Log.e("Response type","json");
+                Log.e("Response type", "json");
+                type = "json";
             }
 
             publishProgress("Opening database...");
@@ -125,25 +127,51 @@ public class EventLoader extends AsyncTask<URL, String, String> {
             //AssetManager assetManager = context.getAssets();
             //InputStream inputStream = assetManager.open("rp2011.ics");
 
-            SimpleIcalParser ical = new SimpleIcalParser(inputStream);
-            SimpleIcalEvent event;
-            while ((event = ical.nextEvent()) != null) {
-                // build record
-                EventRecord record = getEventRecord(event);
-                if (record == null) continue;
+            if (type.equals("ical")) {
+                SimpleIcalParser ical = new SimpleIcalParser(inputStream);
+                SimpleIcalEvent event;
+                while ((event = ical.nextEvent()) != null) {
+                    // build record
+                    EventRecord record = getEventRecordIcal(event);
+                    if (record == null) continue;
 
-                // add to database:
-                db.addEventRecord(record);
-                count++;
+                    // add to database:
+                    db.addEventRecord(record);
+                    count++;
 
-                // progress feedback
-                publishProgress("Loaded " + count + " events...");
+                    // progress feedback
+                    publishProgress("Loaded " + count + " events...");
 
-                // abort if cancelled
-                if (isCancelled()) {
-                    db.rollback();
-                    db.close();
-                    return "Cancelled";
+                    // abort if cancelled
+                    if (isCancelled()) {
+                        db.rollback();
+                        db.close();
+                        return "Cancelled";
+                    }
+                }
+            }
+            else if(type.equals("json"))
+            {
+                SimpleJsonParser ical = new SimpleJsonParser(inputStream);
+                SimpleJsonEvent event;
+                while ((event = ical.nextEvent()) != null) {
+                    // build record
+                    EventRecord record = getEventRecordJson(event);
+                    if (record == null) continue;
+
+                    // add to database:
+                    db.addEventRecord(record);
+                    count++;
+
+                    // progress feedback
+                    publishProgress("Loaded " + count + " events...");
+
+                    // abort if cancelled
+                    if (isCancelled()) {
+                        db.rollback();
+                        db.close();
+                        return "Cancelled";
+                    }
                 }
             }
             db.commit();
@@ -152,12 +180,13 @@ public class EventLoader extends AsyncTask<URL, String, String> {
             db.close();
             return "Failed to read from " + e.toString();
         }
+
         db.close();
         return "Sucessfully loaded " + count + " entries.";
     }
 
 
-    private EventRecord getEventRecord(SimpleIcalEvent event) {
+    private EventRecord getEventRecordIcal(SimpleIcalEvent event) {
         // mandatory fields
         String uid = event.get("UID");
         String summary = event.get("SUMMARY");
@@ -190,6 +219,41 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
         return record;
     }
+
+    private EventRecord getEventRecordJson(SimpleJsonEvent event) {
+        // mandatory fields
+        String uid = event.get("UID");
+        String summary = event.get("SUMMARY");
+        Date dateStart = event.getStartDate();
+        if (summary == null) return null;
+        if (dateStart == null) return null;
+
+        // fake UID
+        if (uid == null) {
+            uid = summary + dateStart.getTime();
+        }
+
+        // optional fields
+        Date dateEnd = event.getEndDate();
+        String location = event.get("LOCATION");
+        String organizer = event.get("ORGANIZER");
+        String url = event.get("URL");
+        String description = event.get("DESCRIPTION");
+
+        // create event
+        EventRecord record = new EventRecord();
+        record.id = uid;
+        record.title = summary;
+        record.starts = dateStart.getTime() / 1000;
+        if (dateEnd != null) record.ends = dateEnd.getTime() / 1000;
+        if (location != null) record.location = location;
+        if (organizer != null) record.speaker = organizer;
+        if (url != null) record.url = url;
+        if (description != null) record.description = description;
+
+        return record;
+    }
+
 
 
     /**

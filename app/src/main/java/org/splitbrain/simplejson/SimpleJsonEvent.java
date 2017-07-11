@@ -31,9 +31,14 @@ public class SimpleJsonEvent {
 
         Date dt;
 
+        if (date.contains("+")) {
+            date = date.substring(0, date.lastIndexOf('+'));
+        } else {
+            date = date.substring(0, date.lastIndexOf('-'));
+        }
+
         date = date.replaceAll("-", "");
         date = date.replaceAll(":", "");
-        date = date.substring(0, date.indexOf('+'));
 
         SimpleDateFormat df = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         dt = df.parse(date);
