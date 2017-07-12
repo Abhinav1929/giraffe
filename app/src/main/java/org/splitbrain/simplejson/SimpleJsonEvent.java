@@ -17,6 +17,7 @@ public class SimpleJsonEvent {
     public Date starts;
     public Date ends;
     public String url;
+    public String speaker;
 
     /**
      * Constructor
@@ -113,5 +114,15 @@ public class SimpleJsonEvent {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public String getSpeaker()
+    {
+        return speaker;
+    }
+
+    public void setSpeaker(String speaker)
+    {
+        this.speaker = speaker;
     }
 }

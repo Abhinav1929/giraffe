@@ -141,6 +141,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
             BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
             String line = r.readLine();
+            String output="null";
 
             if (line.contains("BEGIN:VCALENDAR")) {
                 SharedPreferences.Editor edit = prefs.edit();
@@ -154,6 +155,11 @@ public class EventLoader extends AsyncTask<URL, String, String> {
                 edit.commit();
                 Log.e("Response type", "json");
                 type = "json";
+
+                output = line;
+                while ((line = r.readLine()) != null) {
+                    output += line;
+                }
             }
 
             publishProgress("Opening database...");
@@ -197,7 +203,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
                     }
                 }
             } else if (type.equals("json")) {
-                SimpleJsonParser json = new SimpleJsonParser(inputStream);
+                SimpleJsonParser json = new SimpleJsonParser(output);
                 ArrayList<SimpleJsonEvent> event = json.nextEvent();
                 int i;
 
@@ -276,6 +282,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
         String location = event.getLocation();
         String url = event.getUrl();
         String description = event.getDescription();
+        String organizer = event.getSpeaker();
 
         // create event
         EventRecord record = new EventRecord();
@@ -284,6 +291,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
         record.starts = dateStart.getTime() / 1000;
         if (dateEnd != null) record.ends = dateEnd.getTime() / 1000;
         if (location != null) record.location = location;
+        if (organizer != null) record.speaker = organizer;
         if (url != null) record.url = url;
         if (description != null) record.description = description;
 

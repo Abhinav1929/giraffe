@@ -8,8 +8,6 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.preference.PreferenceManager;
-import android.util.Log;
 import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
@@ -54,10 +52,6 @@ public class DBAdapter {
     };
 
     public DBAdapter(Context context) {
-
-        prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        type = prefs.getString("type", "");
-        Log.e("DB type",type);
         DBHelper = new DatabaseHelper(context);
     }
 

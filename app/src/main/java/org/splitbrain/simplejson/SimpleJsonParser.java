@@ -1,5 +1,7 @@
 package org.splitbrain.simplejson;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,16 +21,12 @@ import java.util.Scanner;
 
 public class SimpleJsonParser {
 
-    private BufferedReader reader = null;
+    private String output;
     public ArrayList<SimpleJsonEvent> listEvent = new ArrayList<SimpleJsonEvent>();
 
-    /**
-     * Initializes the parser on the given input stream
-     *
-     * @param is Stream to the java formatted data to parse
-     */
-    public SimpleJsonParser(InputStream is) {
-        reader = new BufferedReader(new InputStreamReader(is));
+
+    public SimpleJsonParser(String output) {
+        this.output = output;
     }
 
     /**
@@ -39,19 +37,11 @@ public class SimpleJsonParser {
      */
     public ArrayList<SimpleJsonEvent> nextEvent() throws IOException {
 
-        StringBuffer buffer = new StringBuffer();
-        SimpleJsonEvent event = null;
-        Scanner s = new Scanner(reader);
-
-        while (s.hasNext()) {
-            buffer.append(s.nextLine());
-        }
-
-        String output = buffer.toString();
-
+        SimpleJsonEvent event;
+        Log.e("output", output);
         try {
             JSONObject conference = new JSONObject(output);
-            int i;
+            int i, j;
 
             //The sessions are contained in the array present in an object
             JSONArray events = conference.getJSONArray("sessions");
@@ -62,12 +52,28 @@ public class SimpleJsonParser {
 
                 event.setId(eventsJSONObject.getString("id"));
                 event.setTitle(eventsJSONObject.getString("title"));
-                event.setLocation(eventsJSONObject.getString("microlocation"));
-                event.setDescription(eventsJSONObject.getString("long_abstract"));
+                JSONObject microlocation = eventsJSONObject.getJSONObject("microlocation");
+                String location = microlocation.getString("name");
+                event.setLocation(location);
+                String description = eventsJSONObject.getString("long_abstract");
+                event.setDescription(android.text.Html.fromHtml(description).toString());
                 event.setStarts(eventsJSONObject.getString("start_time"));
                 event.setEnds(eventsJSONObject.getString("end_time"));
                 event.setUrl(eventsJSONObject.getString("signup_url"));
 
+                JSONArray speakers = eventsJSONObject.getJSONArray("speakers");
+                String sp = "";
+
+                for (j = 0; j < speakers.length(); j++) {
+                    JSONObject ob = speakers.getJSONObject(j);
+                    if (j == 0) {
+                        sp += ob.getString("name");
+                    } else {
+                        sp += ", " + ob.getString("name");
+                    }
+                }
+
+                event.setSpeaker(sp);
                 listEvent.add(event);
             }
         } catch (JSONException e) {
