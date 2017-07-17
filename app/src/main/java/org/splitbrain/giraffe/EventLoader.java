@@ -141,7 +141,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
             BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
             String line = r.readLine();
-            String output="null";
+            String output = "null";
 
             if (line.contains("BEGIN:VCALENDAR")) {
                 SharedPreferences.Editor edit = prefs.edit();
@@ -258,16 +258,7 @@ public class EventLoader extends AsyncTask<URL, String, String> {
         String url = event.get("URL");
         String description = event.get("DESCRIPTION");
 
-        // create event
-        EventRecord record = new EventRecord();
-        record.id = uid;
-        record.title = summary;
-        record.starts = dateStart.getTime() / 1000;
-        if (dateEnd != null) record.ends = dateEnd.getTime() / 1000;
-        if (location != null) record.location = location;
-        if (organizer != null) record.speaker = organizer;
-        if (url != null) record.url = url;
-        if (description != null) record.description = description;
+        EventRecord record = createEvent(uid, summary, dateStart, dateEnd, location, organizer, url, description);
 
         return record;
     }
@@ -283,11 +274,19 @@ public class EventLoader extends AsyncTask<URL, String, String> {
         String url = event.getUrl();
         String description = event.getDescription();
         String organizer = event.getSpeaker();
+        String title = event.getTitle();
 
-        // create event
+        EventRecord record = createEvent(uid, title, dateStart, dateEnd, location, organizer, url, description);
+
+        return record;
+    }
+
+    // create event
+    private EventRecord createEvent(String uid, String title, Date dateStart, Date dateEnd, String location, String organizer, String url, String description) {
         EventRecord record = new EventRecord();
+
         record.id = uid;
-        record.title = event.getTitle();
+        record.title = title;
         record.starts = dateStart.getTime() / 1000;
         if (dateEnd != null) record.ends = dateEnd.getTime() / 1000;
         if (location != null) record.location = location;
@@ -297,5 +296,4 @@ public class EventLoader extends AsyncTask<URL, String, String> {
 
         return record;
     }
-
 }
