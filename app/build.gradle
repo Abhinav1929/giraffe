@@ -46,6 +46,10 @@ android {
         targetCompatibility 1.6
         sourceCompatibility 1.6
     }
+
+    lintOptions {
+        abortOnError false
+    }
 }
 dependencies {
     testCompile 'junit:junit:4.12'
